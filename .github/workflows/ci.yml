@@ -13,8 +13,27 @@ jobs:
   checks:
     name: Lint, types, tests, build
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: artisans
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: artisans
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U artisans" --health-interval 5s --health-timeout 5s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://artisans:test@localhost:5432/artisans
     steps:
       - uses: actions/checkout@v4
+      - name: Apply database schema
+        run: |
+          for f in db/*.sql; do
+            psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -q -f "$f"
+          done
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -29,23 +48,59 @@ jobs:
     name: Deploy to VPS
     runs-on: ubuntu-latest
     needs: [checks]
-    # Activé une fois le serveur préparé : variable de dépôt DEPLOY_ENABLED = true
+    # Activé une fois les secrets VPS ajoutés : variable de dépôt DEPLOY_ENABLED = true
     if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.DEPLOY_ENABLED == 'true'
     environment: production
     steps:
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1
+      - uses: actions/checkout@v4
+
+      # Le serveur n'a pas accès au dépôt privé : on lui envoie une archive du commit.
+      - name: Package source
+        run: git archive --format=tar.gz -o artisans.tar.gz HEAD
+
+      - name: Upload archive
+        uses: appleboy/scp-action@v1
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
+          source: artisans.tar.gz
+          target: /tmp/artisans-deploy
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        env:
+          GIT_COMMIT_HASH: ${{ github.sha }}
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          envs: GIT_COMMIT_HASH
           command_timeout: 20m
           script: |
             set -e
+            mkdir -p /var/www/artisans
             cd /var/www/artisans
-            git pull origin main
-            export GIT_COMMIT_HASH=$(git rev-parse --short HEAD)
-            docker compose build app worker
+            # Premier déploiement : création du .env avec un mot de passe de base aléatoire.
+            if [ ! -f .env ]; then
+              umask 077
+              printf 'POSTGRES_PASSWORD=%s\nGOOGLE_PLACES_API_KEY=\nDEPARTEMENT=91\n' \
+                "$(head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n')" > .env
+              echo "Fichier .env créé"
+            fi
+            rm -rf app.new && mkdir app.new
+            tar -xzf /tmp/artisans-deploy/artisans.tar.gz -C app.new
+            rm -rf /tmp/artisans-deploy
+            rm -rf app && mv app.new app
+            cp .env app/.env
+            cd app
+            export GIT_COMMIT_HASH=$(echo "$GIT_COMMIT_HASH" | cut -c1-7)
+            docker compose --profile tools build app worker
+            docker compose up -d --wait db
+            # Migrations idempotentes, rejouées à chaque déploiement.
+            for f in db/*.sql; do
+              docker compose exec -T -e PGOPTIONS="-c client_min_messages=warning" db psql -U artisans -d artisans -v ON_ERROR_STOP=1 -q -f "/docker-entrypoint-initdb.d/$(basename "$f")"
+            done
             docker compose up -d app
             sleep 5
             if ! docker compose ps --status running --services | grep -qx app; then

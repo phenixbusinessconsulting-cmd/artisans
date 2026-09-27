@@ -100,7 +100,7 @@ describe("enrichir", () => {
   })
 })
 
-it("nettoyerRecherche retire la syntaxe PostgREST", () => {
-  expect(nettoyerRecherche("dupont,raison_sociale.eq.x)")).toBe("dupont raison_sociale.eq.x")
+it("nettoyerRecherche neutralise les jokers LIKE", () => {
+  expect(nettoyerRecherche("  100%_dupont\\  ")).toBe("100 dupont")
   expect(nettoyerRecherche(undefined)).toBe("")
 })

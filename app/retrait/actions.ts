@@ -1,7 +1,8 @@
 "use server"
 
 import { z } from "zod"
-import { clientAdmin } from "@/lib/supabase/clients"
+import { sql } from "@/lib/db"
+import { masquerFiche } from "@/lib/stockage"
 
 export interface EtatRetrait {
   statut: "initial" | "ok" | "erreur"
@@ -34,11 +35,12 @@ export async function demanderRetrait(_: EtatRetrait, formData: FormData): Promi
     return { statut: "erreur", message: resultat.error.issues[0]?.message ?? "Demande invalide." }
   }
 
-  const db = clientAdmin()
   const { siret, email, motif } = resultat.data
-  const { error } = await db.from("demandes_retrait").insert({ siret, email, motif })
-  if (error) return { statut: "erreur", message: "La demande n'a pas pu être enregistrée." }
-  await db.from("entreprises").update({ masque: true }).eq("siret", siret)
+  try {
+    await masquerFiche(sql(), { siret, email, motif })
+  } catch {
+    return { statut: "erreur", message: "La demande n'a pas pu être enregistrée." }
+  }
 
   return { statut: "ok" }
 }

@@ -10,7 +10,8 @@ import {
   versEntreprises,
   type Recherche,
 } from "../lib/sources/recherche-entreprises"
-import { clientAdmin } from "../lib/supabase/clients"
+import { fermer, sql } from "../lib/db"
+import { enregistrerFichesSirene } from "../lib/stockage"
 import type { EntrepriseSirene } from "../lib/types"
 
 const DEPARTEMENT = process.env.DEPARTEMENT ?? "91"
@@ -51,7 +52,7 @@ async function codesPostauxDuDepartement(naf: string): Promise<string[]> {
 async function main() {
   const filtre = process.argv.find((a) => a.startsWith("--naf="))?.slice(6)
   const codes = filtre ? [filtre] : CODES_NAF_BTP
-  const db = clientAdmin()
+  const db = sql()
   let totalFiches = 0
 
   for (const naf of codes) {
@@ -66,16 +67,12 @@ async function main() {
     }
 
     const uniques = [...new Map(fiches.map((f) => [f.siret, f])).values()]
-    const maintenant = new Date().toISOString()
-    for (let i = 0; i < uniques.length; i += 500) {
-      const lot = uniques.slice(i, i + 500).map((f) => ({ ...f, sirene_maj_le: maintenant }))
-      const { error } = await db.from("entreprises").upsert(lot, { onConflict: "siret" })
-      if (error) throw new Error(`Supabase (${naf}) : ${error.message}`)
-    }
+    await enregistrerFichesSirene(db, uniques)
     totalFiches += uniques.length
     console.log(`${naf} : ${uniques.length} établissements importés`)
   }
   console.log(`Terminé : ${totalFiches} établissements`)
+  await fermer()
 }
 
 main().catch((err) => {

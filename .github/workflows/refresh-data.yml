@@ -35,7 +35,7 @@ jobs:
           command_timeout: 120m
           script: |
             set -e
-            cd /var/www/artisans
+            cd /var/www/artisans/app
             case "$LIMITE" in ''|*[!0-9]*) echo "limite invalide : $LIMITE"; exit 1;; esac
             docker compose run --rm worker npm run ingest
             docker compose run --rm worker npm run enrich -- --limite="$LIMITE"

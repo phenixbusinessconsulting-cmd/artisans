@@ -31,21 +31,25 @@ Règles de fusion (`lib/phone.ts`, `lib/enrich/`) :
 
 ```bash
 npm ci
-cp .env.example .env   # renseigner Supabase
+export DATABASE_URL=postgres://artisans:motdepasse@localhost:5432/artisans
 npm run dev
 npm run test:unit
 npm run ingest -- --naf=43.22A   # import d'une seule activité
 npm run enrich -- --limite=50
 ```
 
-Schéma : `supabase/migrations/001_entreprises.sql`.
+Schéma : `db/001_entreprises.sql` (idempotent, rejoué à chaque déploiement).
+Tests sur une vraie base : `TEST_DATABASE_URL=postgres://… npm run test:unit` (base jetable).
 
 ## Production (VPS)
 
+- `db` : PostgreSQL 16 dédié à l'annuaire (volume `artisans_db-data`), non exposé.
 - `app` : Next.js standalone, publié sur `127.0.0.1:3014` ; Nginx fait le relais HTTPS.
 - `worker` : scripts d'import, lancés par `.github/workflows/refresh-data.yml` (chaque lundi, ou à la
   main depuis l'onglet Actions).
-- Déploiement automatique à chaque push sur `main` (`.github/workflows/ci.yml`).
+- Déploiement automatique à chaque push sur `main` (`.github/workflows/ci.yml`) : le code est
+  envoyé en archive dans `/var/www/artisans/app` (aucune clé d'accès au dépôt n'est nécessaire sur le
+  serveur) ; `/var/www/artisans/.env` est créé au premier déploiement avec un mot de passe aléatoire.
 
 Secrets GitHub : `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`. Variable de dépôt `DEPLOY_ENABLED = true` pour activer le déploiement et le rafraîchissement des données. Variables du serveur : fichier
-`/var/www/artisans/.env` (voir `.env.example`).
+`/var/www/artisans/.env` (voir `.env.example`), où ajouter `GOOGLE_PLACES_API_KEY`.

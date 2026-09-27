@@ -1,4 +1,24 @@
+# Nom fixe : le dossier du code sur le serveur est remplacé à chaque déploiement.
+name: artisans
+
 services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: artisans
+      POSTGRES_USER: artisans
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD manquant dans .env}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      # Exécutés uniquement à la création de la base (volume vide).
+      - ./db:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U artisans -d artisans"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
   app:
     build:
       context: .
@@ -8,10 +28,11 @@ services:
     # Accessible uniquement depuis le serveur : Nginx (artisans.monsitedemo-talens.fr) fait le relais.
     ports:
       - "127.0.0.1:3014:3000"
-    env_file:
-      - .env
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+    environment:
+      DATABASE_URL: postgres://artisans:${POSTGRES_PASSWORD}@db:5432/artisans
+    depends_on:
+      db:
+        condition: service_healthy
     restart: unless-stopped
 
   # Scripts ponctuels : docker compose run --rm worker npm run ingest
@@ -20,7 +41,13 @@ services:
       context: .
       target: worker
     profiles: ["tools"]
-    env_file:
-      - .env
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+    environment:
+      DATABASE_URL: postgres://artisans:${POSTGRES_PASSWORD}@db:5432/artisans
+      GOOGLE_PLACES_API_KEY: ${GOOGLE_PLACES_API_KEY:-}
+      DEPARTEMENT: ${DEPARTEMENT:-91}
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  db-data:

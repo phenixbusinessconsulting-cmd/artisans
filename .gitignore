@@ -44,9 +44,6 @@ next-env.d.ts
 playwright-report/
 test-results/
 
-# supabase
-supabase/.temp/
-supabase/.branches/
 
 # docker
 .docker/

@@ -1,6 +1,7 @@
 -- Annuaire des artisans du bâtiment de l'Essonne (91)
 
 create extension if not exists pg_trgm;
+create extension if not exists unaccent;
 
 create table if not exists public.entreprises (
   siret               text primary key check (siret ~ '^\d{14}$'),
@@ -61,12 +62,3 @@ create table if not exists public.demandes_retrait (
   traitee    boolean not null default false,
   created_at timestamptz not null default now()
 );
-
--- Accès public en lecture seule aux fiches non masquées. Les écritures passent
--- exclusivement par la clé service_role (ingestion, enrichissement, retrait).
-alter table public.entreprises enable row level security;
-alter table public.demandes_retrait enable row level security;
-
-drop policy if exists "lecture publique des fiches" on public.entreprises;
-create policy "lecture publique des fiches" on public.entreprises
-  for select to anon, authenticated using (not masque);

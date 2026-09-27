@@ -3,8 +3,8 @@
 // Google Places est utilisé si GOOGLE_PLACES_API_KEY est défini (API payante).
 
 import { enrichir } from "../lib/enrich"
-import { clientAdmin } from "../lib/supabase/clients"
-import type { Entreprise } from "../lib/types"
+import { fermer, sql } from "../lib/db"
+import { enregistrerEnrichissement, fichesAEnrichir } from "../lib/stockage"
 
 const PAUSE_MS = 250
 const pause = (ms: number) => new Promise((r) => setTimeout(r, ms))
@@ -15,44 +15,22 @@ async function main() {
   if (!cleGoogle)
     console.warn("GOOGLE_PLACES_API_KEY absent : seuls les sites web connus seront lus.")
 
-  const db = clientAdmin()
-  const { data, error } = await db
-    .from("entreprises")
-    .select("*")
-    .eq("masque", false)
-    .order("enrichi_le", { ascending: true, nullsFirst: true })
-    .limit(limite)
-  if (error) throw new Error(`Supabase : ${error.message}`)
+  const db = sql()
+  const data = await fichesAEnrichir(db, limite)
 
   let avecTelephone = 0
-  for (const e of (data ?? []) as (Entreprise & { sources: Record<string, unknown> })[]) {
+  for (const e of data) {
     try {
-      const { sources, ...champs } = await enrichir(e, { cleGoogle })
-      if (champs.telephone) avecTelephone++
-      const { error: err } = await db
-        .from("entreprises")
-        .update({
-          ...champs,
-          // Conserver le téléphone précédent si aucune source n'en fournit un nouveau.
-          ...(champs.telephone
-            ? {}
-            : {
-                telephone: e.telephone,
-                telephone_type: e.telephone_type,
-                telephone_source: e.telephone_source,
-                telephone_confiance: e.telephone_confiance,
-              }),
-          sources: { ...e.sources, ...sources, enrichi: new Date().toISOString() },
-          enrichi_le: new Date().toISOString(),
-        })
-        .eq("siret", e.siret)
-      if (err) throw new Error(err.message)
+      const enrichissement = await enrichir(e, { cleGoogle })
+      if (enrichissement.telephone) avecTelephone++
+      await enregistrerEnrichissement(db, e, enrichissement)
     } catch (err) {
       console.error(`${e.siret} (${e.raison_sociale}) :`, err instanceof Error ? err.message : err)
     }
     await pause(PAUSE_MS)
   }
-  console.log(`Terminé : ${data?.length ?? 0} fiches traitées, ${avecTelephone} avec téléphone`)
+  console.log(`Terminé : ${data.length} fiches traitées, ${avecTelephone} avec téléphone`)
+  await fermer()
 }
 
 main().catch((err) => {
