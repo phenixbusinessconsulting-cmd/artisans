@@ -5,6 +5,8 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # Relance manuelle (Actions → CI → Run workflow), par exemple pour redéployer.
+  workflow_dispatch:
 
 env:
   NODE_VERSION: "24"
@@ -49,7 +51,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [checks]
     # Activé une fois les secrets VPS ajoutés : variable de dépôt DEPLOY_ENABLED = true
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.DEPLOY_ENABLED == 'true'
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && vars.DEPLOY_ENABLED == 'true'
     environment: production
     steps:
       - uses: actions/checkout@v4
