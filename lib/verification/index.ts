@@ -44,14 +44,20 @@ export function contientNom(texte: string, nom: string): boolean {
   return mots.length > 0 && mots.every((m) => page.includes(` ${m} `))
 }
 
-export function comparer(html: string, e: Entreprise): StatutVerification {
+export function comparer(html: string, e: Entreprise, recherche?: string): StatutVerification {
   const texte = texteVisible(html)
+  const telephones = extraireTelephones(texte)
+  const avecSiren = contientSiren(texte, e.siren)
+  if (recherche && !avecSiren) {
+    // La page répète le nom cherché (« Résultats pour … ») : sa présence ne prouve rien.
+    // Seul notre téléphone dans les résultats vaut confirmation.
+    return e.telephone && telephones.includes(e.telephone) ? "concorde" : "absente"
+  }
   const trouvee =
-    contientSiren(texte, e.siren) ||
+    avecSiren ||
     contientNom(texte, e.raison_sociale) ||
     (!!e.enseigne && contientNom(texte, e.enseigne))
   if (!trouvee) return "absente"
-  const telephones = extraireTelephones(texte)
   if (e.telephone && telephones.includes(e.telephone)) return "concorde"
   if (e.telephone && telephones.length > 0) return "telephone_different"
   return "trouvee"
@@ -60,6 +66,8 @@ export function comparer(html: string, e: Entreprise): StatutVerification {
 export class Verificateur {
   private robots = new Map<string, Promise<Regle[]>>()
   private dernierAppel = new Map<string, number>()
+  /** Sites qui ont demandé de ralentir (HTTP 429) : plus sollicités pendant cette exécution. */
+  readonly sitesSatures = new Set<string>()
 
   constructor(
     private fetchImpl: typeof fetch = fetch,
@@ -83,12 +91,16 @@ export class Verificateur {
       signal: AbortSignal.timeout(DELAI_MS),
       redirect: "follow",
     })
+    if (res.status === 429) {
+      this.sitesSatures.add(new URL(url).host)
+      return null
+    }
     return res.ok ? res.text() : null
   }
 
   /** Espace les requêtes vers un même site. */
-  private async patienter(hote: string) {
-    const attente = (this.dernierAppel.get(hote) ?? 0) + this.pauseParSiteMs - Date.now()
+  private async patienter(hote: string, pauseMs: number) {
+    const attente = (this.dernierAppel.get(hote) ?? 0) + pauseMs - Date.now()
     if (attente > 0) await new Promise((r) => setTimeout(r, attente))
     this.dernierAppel.set(hote, Date.now())
   }
@@ -97,15 +109,18 @@ export class Verificateur {
     const adresse = source.url(e)
     if (!adresse) return null
     const url = new URL(adresse)
+    if (this.sitesSatures.has(url.host)) return null
     const maintenant = () => new Date().toISOString()
     if (!estAutorise(await this.reglesPour(url.origin), url.pathname + url.search)) {
       return { statut: "interdit", verifie_le: maintenant() }
     }
-    await this.patienter(url.host)
+    await this.patienter(url.host, source.pauseMs ?? this.pauseParSiteMs)
     try {
       const html = await this.lire(url.toString())
+      // Site saturé : aucun statut, la fiche sera vérifiée lors d'une prochaine exécution.
+      if (this.sitesSatures.has(url.host)) return null
       if (html === null) return { statut: "erreur", verifie_le: maintenant() }
-      return { statut: comparer(html, e), verifie_le: maintenant() }
+      return { statut: comparer(html, e, source.recherche?.(e)), verifie_le: maintenant() }
     } catch {
       return { statut: "erreur", verifie_le: maintenant() }
     }

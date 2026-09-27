@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { nettoyerRecherche } from "@/lib/annuaire"
 import { enrichir } from "@/lib/enrich"
+import { decouvrirSite, domainesCandidats } from "@/lib/enrich/decouverte-site"
 import { correspond } from "@/lib/enrich/google-places"
 import { contientSiren, texteDescriptif } from "@/lib/enrich/site-web"
 import { detecterSpecialites } from "@/lib/specialites"
@@ -103,4 +104,59 @@ describe("enrichir", () => {
 it("nettoyerRecherche neutralise les jokers LIKE", () => {
   expect(nettoyerRecherche("  100%_dupont\\  ")).toBe("100 dupont")
   expect(nettoyerRecherche(undefined)).toBe("")
+})
+
+describe("découverte du site par nom de domaine", () => {
+  it("propose des domaines sans forme juridique ni accents", () => {
+    expect(
+      domainesCandidats({ enseigne: "Élec & Clim", raison_sociale: "SARL Dupont Électricité" })
+    ).toEqual([
+      "elec-et-clim.fr",
+      "elec-et-clim.com",
+      "elecetclim.fr",
+      "elecetclim.com",
+      "dupont-electricite.fr",
+      "dupont-electricite.com",
+      "dupontelectricite.fr",
+      "dupontelectricite.com",
+    ])
+    expect(domainesCandidats({ enseigne: null, raison_sociale: "ABC" })).toEqual([])
+  })
+
+  it("ne retient que le site qui affiche le SIREN", async () => {
+    const fetchImpl = (async (url: string | URL | Request) => {
+      const u = String(url)
+      if (u.startsWith("https://www.plomberie-dupont.fr/mentions-legales"))
+        return reponse("<p>SIREN 812 345 678</p>")
+      if (u.startsWith("https://www.plomberie-dupont.fr"))
+        return reponse(`<title>Plomberie Dupont</title><a href="tel:0612345678">Appel</a>`)
+      return reponse("<p>Homonyme sans SIREN</p>")
+    }) as typeof fetch
+    const resoudre = async (d: string) => d === "plomberiedupont.fr" || d === "plomberie-dupont.fr"
+
+    const r = await enrichir(entreprise, { fetchImpl, resoudreDns: resoudre })
+    expect(r).toMatchObject({
+      site_web: "https://www.plomberie-dupont.fr/",
+      telephone: "0612345678",
+      telephone_source: "site",
+    })
+    expect(r.sources.decouverte_site).toEqual({ trouve: true })
+
+    // Seul un homonyme existe : rien n'est retenu.
+    const homonyme = await enrichir(entreprise, {
+      fetchImpl,
+      resoudreDns: async (d) => d === "plomberiedupont.fr",
+    })
+    expect(homonyme).toMatchObject({ site_web: null, telephone: null })
+  })
+
+  it("decouvrirSite ignore les domaines qui n'existent pas", async () => {
+    let appels = 0
+    const fetchImpl = (async () => {
+      appels++
+      return reponse("")
+    }) as typeof fetch
+    expect(await decouvrirSite(entreprise, { fetchImpl, resoudre: async () => false })).toBeNull()
+    expect(appels).toBe(0)
+  })
 })

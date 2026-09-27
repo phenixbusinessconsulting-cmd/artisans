@@ -30,13 +30,15 @@ Règles de fusion (`lib/phone.ts`, `lib/enrich/`) :
 ## Contrôle croisé avec les annuaires tiers
 
 `npm run verify` (`lib/verification/`) recherche chaque fiche sur des annuaires publics
-(monartisan.info par SIRET, Qualibat par SIREN, annuaire-plombiers.com, lartisanatenligne.com,
-pointlocal.fr) et enregistre **seulement un statut** par source dans la colonne `verifications` :
+(monartisan.info par SIRET, annuaire-plombiers.com pour les plombiers et chauffagistes) et
+enregistre **seulement un statut** par source dans la colonne `verifications` :
 `concorde`, `telephone_different`, `trouvee`, `absente`, `interdit` ou `erreur`. Le contenu de ces
 sites n'est jamais stocké ni publié.
 
 - `robots.txt` respecté (page exclue → statut `interdit`, rien n'est téléchargé) ;
-- 2 s minimum entre deux requêtes vers un même site, user-agent identifiable ;
+- 2 s minimum entre deux requêtes vers un même site (10 s pour monartisan.info), user-agent
+  identifiable ; un site qui répond 429 n'est plus sollicité jusqu'à l'exécution suivante ;
+- quand la page de résultats répète le nom cherché, seul le SIREN ou notre téléphone vaut preuve ;
 - sites protégés par un anti-robot (Leboncoin, plus-que-pro…) exclus : aucun contournement.
 
 ## Données personnelles (RGPD)

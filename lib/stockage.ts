@@ -48,7 +48,8 @@ export async function fichesAEnrichir(db: postgres.Sql, limite: number) {
   return db<FicheAEnrichir[]>`
     select *, date_creation::text as date_creation from entreprises
     where not masque and liquidation_le is null
-    order by enrichi_le asc nulls first
+    -- D'abord les fiches dont on connaît le site mais pas encore le téléphone.
+    order by (site_web is not null and telephone is null) desc, enrichi_le asc nulls first
     limit ${limite}`
 }
 

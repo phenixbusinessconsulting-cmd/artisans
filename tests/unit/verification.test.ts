@@ -70,6 +70,15 @@ describe("comparer", () => {
     expect(comparer("<p>SIREN 812 345 678</p>", e)).toBe("trouvee")
   })
 
+  it("ignore le texte recherché répété par la page de résultats", () => {
+    const page = "<h1>Résultats pour : Plomberie Dupont</h1><p>Aucun résultat</p>"
+    expect(comparer(page, e)).toBe("trouvee")
+    expect(comparer(page, e, "Plomberie Dupont")).toBe("absente")
+    expect(
+      comparer(`${page}<h2>Plomberie Dupont</h2><p>06 12 34 56 78</p>`, e, "Plomberie Dupont")
+    ).toBe("concorde")
+  })
+
   it("absente si ni le nom ni le SIREN", () => {
     expect(comparer("<p>Plomberie Martin 06 12 34 56 78</p>", e)).toBe("absente")
   })
@@ -110,6 +119,19 @@ describe("Verificateur", () => {
     expect((await v.verifier(e, [source])).test?.statut).toBe("concorde")
     await v.verifier(e, [source])
     expect(appels.filter((a) => a.endsWith("robots.txt"))).toHaveLength(1)
+  })
+
+  it("arrête de solliciter un site qui répond 429", async () => {
+    const appels: string[] = []
+    const impl = (async (url: string | URL | Request) => {
+      appels.push(String(url))
+      if (String(url).endsWith("/robots.txt")) return new Response("")
+      return new Response("", { status: 429 })
+    }) as typeof fetch
+    const v = new Verificateur(impl, 0)
+    expect(await v.verifier(e, [source])).toEqual({})
+    expect(await v.verifier(e, [source])).toEqual({})
+    expect(appels.filter((a) => !a.endsWith("robots.txt"))).toHaveLength(1)
   })
 
   it("ignore une source qui ne s'applique pas", async () => {
