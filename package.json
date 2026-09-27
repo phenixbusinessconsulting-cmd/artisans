@@ -11,7 +11,8 @@
     "type-check": "next typegen && tsc --noEmit",
     "test:unit": "vitest run",
     "ingest": "tsx scripts/ingest.ts",
-    "enrich": "tsx scripts/enrich.ts"
+    "enrich": "tsx scripts/enrich.ts",
+    "verify": "tsx scripts/verify.ts"
   },
   "dependencies": {
     "clsx": "^2.1.1",

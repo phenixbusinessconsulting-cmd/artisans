@@ -1,6 +1,7 @@
 name: Refresh data
 
-# Rafraîchit l'annuaire sur le VPS : import SIRENE puis enrichissement d'un lot de fiches.
+# Rafraîchit l'annuaire sur le VPS : import SIRENE, enrichissement d'un lot de fiches,
+# puis contrôle croisé sur les annuaires tiers.
 on:
   schedule:
     - cron: "17 3 * * 1" # chaque lundi à 03:17 UTC
@@ -10,6 +11,10 @@ on:
         description: "Nombre de fiches à enrichir"
         required: true
         default: "500"
+      verifier:
+        description: "Nombre de fiches à contrôler sur les annuaires tiers (0 = aucune)"
+        required: true
+        default: "100"
 
 concurrency:
   group: refresh-data
@@ -27,15 +32,21 @@ jobs:
         uses: appleboy/ssh-action@v1
         env:
           LIMITE: ${{ inputs.limite || '500' }}
+          VERIFIER: ${{ inputs.verifier || '100' }}
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          envs: LIMITE
+          envs: LIMITE,VERIFIER
           command_timeout: 120m
           script: |
             set -e
             cd /var/www/artisans/app
-            case "$LIMITE" in ''|*[!0-9]*) echo "limite invalide : $LIMITE"; exit 1;; esac
+            for n in "$LIMITE" "$VERIFIER"; do
+              case "$n" in ''|*[!0-9]*) echo "nombre invalide : $n"; exit 1;; esac
+            done
             docker compose run --rm worker npm run ingest
             docker compose run --rm worker npm run enrich -- --limite="$LIMITE"
+            if [ "$VERIFIER" -gt 0 ]; then
+              docker compose run --rm worker npm run verify -- --limite="$VERIFIER"
+            fi

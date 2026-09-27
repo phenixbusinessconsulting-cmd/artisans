@@ -19,6 +19,18 @@ Règles de fusion (`lib/phone.ts`, `lib/enrich/`) :
 - les numéros d'un site ne sont retenus que si le site affiche le SIREN, ou s'il en publie au plus deux ;
 - chaque fiche garde la trace de ses sources (colonne `sources`) et un indice de confiance.
 
+## Contrôle croisé avec les annuaires tiers
+
+`npm run verify` (`lib/verification/`) recherche chaque fiche sur des annuaires publics
+(monartisan.info par SIRET, Qualibat par SIREN, annuaire-plombiers.com, lartisanatenligne.com,
+pointlocal.fr) et enregistre **seulement un statut** par source dans la colonne `verifications` :
+`concorde`, `telephone_different`, `trouvee`, `absente`, `interdit` ou `erreur`. Le contenu de ces
+sites n'est jamais stocké ni publié.
+
+- `robots.txt` respecté (page exclue → statut `interdit`, rien n'est téléchargé) ;
+- 2 s minimum entre deux requêtes vers un même site, user-agent identifiable ;
+- sites protégés par un anti-robot (Leboncoin, plus-que-pro…) exclus : aucun contournement.
+
 ## Données personnelles (RGPD)
 
 - Les entreprises en diffusion partielle au registre SIRENE ne sont jamais importées.

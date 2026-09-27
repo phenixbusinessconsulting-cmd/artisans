@@ -9,7 +9,9 @@ import type { Enrichissement } from "@/lib/enrich"
 import {
   enregistrerEnrichissement,
   enregistrerFichesSirene,
+  enregistrerVerifications,
   fichesAEnrichir,
+  fichesAVerifier,
   masquerFiche,
 } from "@/lib/stockage"
 import type { EntrepriseSirene } from "@/lib/types"
@@ -134,5 +136,24 @@ describe.skipIf(!url)("stockage PostgreSQL", () => {
     await masquerFiche(db, { siret: fiche.siret, email: "a@b.fr" })
     expect(await lireEntreprise(fiche.siret)).toBeNull()
     expect((await rechercherEntreprises({})).total).toBe(1)
+  })
+
+  it("fusionne les vérifications par source et priorise les fiches jamais vérifiées", async () => {
+    const autre = { ...fiche, siret: "90000000000011", siren: "900000000" }
+    await enregistrerFichesSirene(db, [fiche, autre])
+    const date = "2026-09-27T16:40:00.000Z"
+    await enregistrerVerifications(db, fiche.siret, {
+      qualibat: { statut: "absente", verifie_le: date },
+    })
+    await enregistrerVerifications(db, fiche.siret, {
+      monartisan: { statut: "concorde", verifie_le: date },
+    })
+
+    const [e] = await db`select verifications from entreprises where siret = ${fiche.siret}`
+    expect(e!.verifications).toEqual({
+      qualibat: { statut: "absente", verifie_le: date },
+      monartisan: { statut: "concorde", verifie_le: date },
+    })
+    expect((await fichesAVerifier(db, 1))[0]!.siret).toBe(autre.siret)
   })
 })

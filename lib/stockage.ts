@@ -3,6 +3,7 @@
 import type postgres from "postgres"
 import type { Enrichissement } from "./enrich"
 import type { Entreprise, EntrepriseSirene } from "./types"
+import type { Verification } from "./verification"
 
 const COLONNES_SIRENE = [
   "siret",
@@ -80,4 +81,24 @@ export async function masquerFiche(
       values (${demande.siret}, ${demande.email}, ${demande.motif ?? null})`
     await tx`update entreprises set masque = true where siret = ${demande.siret}`
   })
+}
+
+export async function fichesAVerifier(db: postgres.Sql, limite: number) {
+  return db<Entreprise[]>`
+    select *, date_creation::text as date_creation from entreprises
+    where not masque
+    order by verifie_le asc nulls first
+    limit ${limite}`
+}
+
+export async function enregistrerVerifications(
+  db: postgres.Sql,
+  siret: string,
+  resultats: Record<string, Verification>
+) {
+  await db`
+    update entreprises set
+      verifications = verifications || ${db.json(resultats as never)},
+      verifie_le = now()
+    where siret = ${siret}`
 }
