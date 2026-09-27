@@ -14,6 +14,7 @@ et labels.
 | Entreprises en liquidation judiciaire (retirées)                                             | [BODACC](https://bodacc-datadila.opendatasoft.com/) (DILA)                                                           | Gratuit                        |
 | Téléphone, site web                                                                          | Google Places API (New), fiche publique de l'établissement                                                           | Payant (quota gratuit mensuel) |
 | Téléphone, spécialités, confirmation du SIREN                                                | Site web de l'entreprise (accueil, contact, mentions légales)                                                        | Gratuit                        |
+| Site web (quand aucune source n'en donne)                                                    | Noms de domaine probables (`nom-entreprise.fr`…), retenus seulement si le site affiche le SIREN                      | Gratuit                        |
 
 Ordre du rafraîchissement (`.github/workflows/refresh-data.yml`) : `npm run ingest` (SIRENE) →
 `npm run sources` (ADEME, OSM, BODACC) → `npm run enrich` (Google, sites) → `npm run verify`
