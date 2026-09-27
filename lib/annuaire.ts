@@ -12,6 +12,8 @@ export interface Filtres {
   specialite?: string
   /** « oui » : un téléphone est renseigné ; « mobile » : un portable est renseigné. */
   telephone?: "oui" | "mobile"
+  /** Réservé à l'administrateur : « a_contacter » ou « contacte ». */
+  suivi?: "a_contacter" | "contacte"
   page?: number
 }
 
@@ -31,7 +33,7 @@ function colonnes(db: ReturnType<typeof sql>) {
     date_creation::text as date_creation`
 }
 
-export async function rechercherEntreprises(filtres: Filtres) {
+export async function rechercherEntreprises(filtres: Filtres, options: { admin?: boolean } = {}) {
   const db = sql()
   const page = Math.max(1, filtres.page ?? 1)
   const q = nettoyerRecherche(filtres.q)
@@ -48,6 +50,10 @@ export async function rechercherEntreprises(filtres: Filtres) {
   }
   if (filtres.metier) conditions.push(db`metier = ${filtres.metier}`)
   if (filtres.specialite) conditions.push(db`${filtres.specialite} = any(specialites)`)
+  if (options.admin && filtres.suivi === "contacte")
+    conditions.push(db`coalesce(s.contacte, false)`)
+  if (options.admin && filtres.suivi === "a_contacter")
+    conditions.push(db`not coalesce(s.contacte, false)`)
   if (filtres.telephone === "oui") conditions.push(db`telephone is not null`)
   // Portable : numéros en 06 ou 07 (voir typeTelephone dans lib/phone.ts).
   if (filtres.telephone === "mobile") conditions.push(db`telephone_type = 'mobile'`)
@@ -60,9 +66,12 @@ export async function rechercherEntreprises(filtres: Filtres) {
   }
   const where = conditions.reduce((acc, c) => db`${acc} and ${c}`)
 
+  // Le suivi de prospection n'est joint (et donc lisible) qu'en mode administrateur.
   const lignes = await db<(Entreprise & { total: number })[]>`
     select ${colonnes(db)}, count(*) over ()::int as total
+      ${options.admin ? db`, coalesce(s.contacte, false) as contacte` : db``}
     from entreprises
+      ${options.admin ? db`left join suivi_prospection s using (siret)` : db``}
     where ${where}
     order by raison_sociale
     limit ${PAR_PAGE} offset ${(page - 1) * PAR_PAGE}`

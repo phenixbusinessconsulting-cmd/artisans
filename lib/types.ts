@@ -23,6 +23,8 @@ export interface Entreprise {
   telephone_confiance: number | null
   site_web: string | null
   date_creation: string | null
+  /** Suivi de prospection : renseigné uniquement pour l'administrateur. */
+  contacte?: boolean
 }
 
 /** Champs issus des registres officiels, écrits par l'ingestion. */

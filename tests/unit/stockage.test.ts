@@ -16,6 +16,7 @@ import {
   fichesAVerifier,
   masquerFiche,
 } from "@/lib/stockage"
+import { enregistrerCommentaire, lireSuivi, marquerContacte, SUIVI_VIDE } from "@/lib/suivi"
 import type { EntrepriseSirene } from "@/lib/types"
 
 const url = process.env.TEST_DATABASE_URL
@@ -52,7 +53,7 @@ describe.skipIf(!url)("stockage PostgreSQL", () => {
   const db = postgres(url ?? "", { max: 1, onnotice: () => {} })
 
   beforeEach(async () => {
-    await db`truncate entreprises, demandes_retrait`
+    await db`truncate entreprises, demandes_retrait, suivi_prospection`
   })
   afterAll(async () => {
     await db.end()
@@ -235,5 +236,36 @@ describe.skipIf(!url)("stockage PostgreSQL", () => {
     // Une liquidation qui n'apparaît plus (annulée, hors fenêtre) est levée.
     expect(await enregistrerLiquidations(db, new Map())).toBe(0)
     expect(await lireEntreprise(fiche.siret)).not.toBeNull()
+  })
+
+  it("suivi de prospection : contacté, commentaire, réservé à l'administrateur", async () => {
+    process.env.DATABASE_URL = url
+    const autre = { ...fiche, siret: "90000000000011", siren: "900000000", raison_sociale: "Autre" }
+    await enregistrerFichesSirene(db, [fiche, autre])
+    expect(await lireSuivi(db, fiche.siret)).toEqual(SUIVI_VIDE)
+
+    const s1 = await marquerContacte(db, fiche.siret, true)
+    expect(s1.contacte).toBe(true)
+    expect(s1.contacte_le).not.toBeNull()
+    const s2 = await enregistrerCommentaire(db, fiche.siret, "  Rappeler lundi  ")
+    expect(s2).toMatchObject({ contacte: true, commentaire: "Rappeler lundi" })
+    // Un commentaire sur une fiche jamais contactée crée le suivi sans la marquer.
+    expect(await enregistrerCommentaire(db, autre.siret, "Pas de réponse")).toMatchObject({
+      contacte: false,
+      commentaire: "Pas de réponse",
+    })
+
+    // Public : aucune information de suivi, et le filtre est ignoré.
+    const publique = await rechercherEntreprises({ suivi: "contacte" })
+    expect(publique.total).toBe(2)
+    expect(publique.entreprises.every((e) => e.contacte === undefined)).toBe(true)
+    // Administrateur : badge et filtres.
+    const contactes = await rechercherEntreprises({ suivi: "contacte" }, { admin: true })
+    expect(contactes.entreprises.map((e) => [e.siret, e.contacte])).toEqual([[fiche.siret, true]])
+    const aContacter = await rechercherEntreprises({ suivi: "a_contacter" }, { admin: true })
+    expect(aContacter.entreprises.map((e) => e.siret)).toEqual([autre.siret])
+
+    const s3 = await marquerContacte(db, fiche.siret, false)
+    expect(s3).toMatchObject({ contacte: false, contacte_le: null, commentaire: "Rappeler lundi" })
   })
 })

@@ -9,7 +9,12 @@ export function nomAffiche(e: Pick<Entreprise, "enseigne" | "raison_sociale">) {
 export function CarteEntreprise({ e }: { e: Entreprise }) {
   return (
     <li className="flex flex-col rounded-lg border border-stone-200 bg-white p-4 shadow-sm">
-      <p className="text-marque text-xs font-semibold tracking-wide uppercase">{e.metier}</p>
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-marque text-xs font-semibold tracking-wide uppercase">{e.metier}</p>
+        {e.contacte && (
+          <span className="rounded bg-green-700 px-2 py-0.5 text-xs text-white">Contacté</span>
+        )}
+      </div>
       <Link href={`/entreprise/${e.siret}`} className="mt-1 font-semibold hover:underline">
         {nomAffiche(e)}
       </Link>

@@ -77,11 +77,12 @@ jobs:
         uses: appleboy/ssh-action@v1
         env:
           GIT_COMMIT_HASH: ${{ github.sha }}
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          envs: GIT_COMMIT_HASH
+          envs: GIT_COMMIT_HASH,ADMIN_PASSWORD
           command_timeout: 20m
           script: |
             set -e
@@ -93,6 +94,13 @@ jobs:
               printf 'POSTGRES_PASSWORD=%s\nGOOGLE_PLACES_API_KEY=\nDEPARTEMENT=91\n' \
                 "$(head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n')" > .env
               echo "Fichier .env créé"
+            fi
+            # Mot de passe du mode administrateur : repris du secret GitHub ADMIN_PASSWORD s'il existe.
+            if [ -n "$ADMIN_PASSWORD" ]; then
+              umask 077
+              grep -v '^ADMIN_PASSWORD=' .env > .env.tmp || true
+              printf 'ADMIN_PASSWORD=%s\n' "$ADMIN_PASSWORD" >> .env.tmp
+              mv .env.tmp .env
             fi
             rm -rf app.new && mkdir app.new
             tar -xzf /tmp/artisans-deploy/artisans.tar.gz -C app.new

@@ -1,9 +1,13 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
+import { estAdmin } from "@/lib/admin"
 import { lireEntreprise } from "@/lib/annuaire"
+import { sql } from "@/lib/db"
+import { lireSuivi } from "@/lib/suivi"
 import { formaterTelephone } from "@/lib/phone"
 import { nomAffiche } from "../../fiche"
+import { SuiviProspection } from "./suivi"
 
 const SOURCES_TELEPHONE: Record<string, string> = {
   google: "fiche Google de l'entreprise",
@@ -30,6 +34,8 @@ export default async function FicheEntreprise(props: PageProps<"/entreprise/[sir
   const { siret } = await props.params
   const e = await lireEntreprise(siret)
   if (!e) notFound()
+  const admin = await estAdmin()
+  const suivi = admin ? await lireSuivi(sql(), e.siret) : null
 
   const sourcesTel = (e.telephone_source ?? "")
     .split("+")
@@ -127,6 +133,8 @@ export default async function FicheEntreprise(props: PageProps<"/entreprise/[sir
           </ul>
         </section>
       )}
+
+      {suivi && <SuiviProspection siret={e.siret} initial={suivi} />}
 
       <p className="mt-8 text-sm text-stone-500">
         Vous êtes cette entreprise ?{" "}

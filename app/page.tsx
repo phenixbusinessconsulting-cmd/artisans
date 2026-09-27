@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { PAR_PAGE, rechercherEntreprises, type Filtres } from "@/lib/annuaire"
+import { estAdmin } from "@/lib/admin"
 import { METIERS } from "@/lib/btp"
 import { CarteEntreprise } from "./fiche"
 
@@ -11,6 +12,10 @@ function lienPage(filtres: Filtres, page: number) {
   const params = new URLSearchParams()
   for (const [cle, v] of Object.entries({ ...filtres, page })) if (v) params.set(cle, String(v))
   return `/?${params}`
+}
+
+function filtreSuivi(v: string | undefined): Filtres["suivi"] {
+  return v === "a_contacter" || v === "contacte" ? v : undefined
 }
 
 function filtreTelephone(v: string | undefined): Filtres["telephone"] {
@@ -25,9 +30,11 @@ export default async function Accueil(props: PageProps<"/">) {
     ville: valeur(sp.ville),
     specialite: valeur(sp.specialite),
     telephone: filtreTelephone(valeur(sp.telephone)),
+    suivi: filtreSuivi(valeur(sp.suivi)),
     page: Number(valeur(sp.page)) || 1,
   }
-  const { entreprises, total, page } = await rechercherEntreprises(filtres)
+  const admin = await estAdmin()
+  const { entreprises, total, page } = await rechercherEntreprises(filtres, { admin })
   const pages = Math.max(1, Math.ceil(total / PAR_PAGE))
 
   return (
@@ -70,6 +77,18 @@ export default async function Accueil(props: PageProps<"/">) {
           <option value="oui">Téléphone renseigné (fixe ou portable)</option>
           <option value="mobile">Portable (06 / 07)</option>
         </select>
+        {admin && (
+          <select
+            name="suivi"
+            defaultValue={filtres.suivi ?? ""}
+            aria-label="Suivi de prospection"
+            className="rounded border border-amber-300 bg-amber-50 px-3 py-2"
+          >
+            <option value="">Tous (suivi)</option>
+            <option value="a_contacter">À contacter</option>
+            <option value="contacte">Déjà contactés</option>
+          </select>
+        )}
         {filtres.specialite && <input type="hidden" name="specialite" value={filtres.specialite} />}
         <button className="bg-marque hover:bg-marque-fonce rounded px-4 py-2 font-medium text-white sm:col-start-4">
           Rechercher

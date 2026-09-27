@@ -29,6 +29,8 @@ services:
       - "127.0.0.1:3014:3000"
     environment:
       DATABASE_URL: postgres://artisans:${POSTGRES_PASSWORD}@db:5432/artisans
+      # Mode administrateur (suivi de prospection) : désactivé si absent.
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
     depends_on:
       db:
         condition: service_healthy

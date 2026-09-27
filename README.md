@@ -42,6 +42,14 @@ sites n'est jamais stocké ni publié.
 - quand la page de résultats répète le nom cherché, seul le SIREN ou notre téléphone vaut preuve ;
 - sites protégés par un anti-robot (Leboncoin, plus-que-pro…) exclus : aucun contournement.
 
+## Mode administrateur (suivi de prospection)
+
+`/connexion` ouvre une session (cookie de 30 jours) avec le mot de passe `ADMIN_PASSWORD`
+(secret GitHub du même nom, recopié dans `/var/www/artisans/.env` au déploiement). En mode
+administrateur, chaque fiche affiche un bouton « contacté » et un commentaire (table
+`suivi_prospection`), la liste montre un badge « Contacté » et un filtre « À contacter / Déjà
+contactés ». Rien de tout cela n'est visible ni modifiable par le public.
+
 ## Données personnelles (RGPD)
 
 - Les entreprises en diffusion partielle au registre SIRENE ne sont jamais importées.
