@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "type-check": "tsc --noEmit",
+    "type-check": "next typegen && tsc --noEmit",
     "test:unit": "vitest run",
     "ingest": "tsx scripts/ingest.ts",
     "enrich": "tsx scripts/enrich.ts"
