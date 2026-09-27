@@ -13,6 +13,10 @@ function lienPage(filtres: Filtres, page: number) {
   return `/?${params}`
 }
 
+function filtreTelephone(v: string | undefined): Filtres["telephone"] {
+  return v === "oui" || v === "mobile" ? v : undefined
+}
+
 export default async function Accueil(props: PageProps<"/">) {
   const sp = await props.searchParams
   const filtres: Filtres = {
@@ -20,6 +24,7 @@ export default async function Accueil(props: PageProps<"/">) {
     metier: valeur(sp.metier),
     ville: valeur(sp.ville),
     specialite: valeur(sp.specialite),
+    telephone: filtreTelephone(valeur(sp.telephone)),
     page: Number(valeur(sp.page)) || 1,
   }
   const { entreprises, total, page } = await rechercherEntreprises(filtres)
@@ -55,6 +60,16 @@ export default async function Accueil(props: PageProps<"/">) {
           placeholder="Ville ou code postal"
           className="rounded border border-stone-300 px-3 py-2"
         />
+        <select
+          name="telephone"
+          defaultValue={filtres.telephone ?? ""}
+          aria-label="Téléphone"
+          className="rounded border border-stone-300 px-3 py-2"
+        >
+          <option value="">Avec ou sans téléphone</option>
+          <option value="oui">Téléphone renseigné</option>
+          <option value="mobile">Portable renseigné</option>
+        </select>
         {filtres.specialite && <input type="hidden" name="specialite" value={filtres.specialite} />}
         <button className="bg-marque hover:bg-marque-fonce rounded px-4 py-2 font-medium text-white sm:col-start-4">
           Rechercher

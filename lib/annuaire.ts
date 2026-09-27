@@ -10,6 +10,8 @@ export interface Filtres {
   metier?: string
   ville?: string
   specialite?: string
+  /** « oui » : un téléphone est renseigné ; « mobile » : un portable est renseigné. */
+  telephone?: "oui" | "mobile"
   page?: number
 }
 
@@ -46,6 +48,8 @@ export async function rechercherEntreprises(filtres: Filtres) {
   }
   if (filtres.metier) conditions.push(db`metier = ${filtres.metier}`)
   if (filtres.specialite) conditions.push(db`${filtres.specialite} = any(specialites)`)
+  if (filtres.telephone === "oui") conditions.push(db`telephone is not null`)
+  if (filtres.telephone === "mobile") conditions.push(db`telephone_type = 'mobile'`)
   if (ville) {
     conditions.push(
       /^\d{2,5}$/.test(ville)

@@ -130,6 +130,11 @@ describe.skipIf(!url)("stockage PostgreSQL", () => {
     expect((await rechercherEntreprises({ ville: "evry" })).total).toBe(1) // sans accent : Évry
     expect((await rechercherEntreprises({ q: "dupont" })).total).toBe(1)
     expect((await rechercherEntreprises({ specialite: "Chauffage" })).total).toBe(1)
+    expect(
+      (await rechercherEntreprises({ telephone: "oui" })).entreprises.map((e) => e.siret)
+    ).toEqual([fiche.siret])
+    expect((await rechercherEntreprises({ telephone: "mobile" })).total).toBe(1)
+    expect((await rechercherEntreprises({ telephone: "oui", metier: "Couvreur" })).total).toBe(0)
     expect((await rechercherEntreprises({ page: 2 })).entreprises).toEqual([])
 
     const e = await lireEntreprise(fiche.siret)
