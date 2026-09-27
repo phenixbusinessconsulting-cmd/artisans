@@ -7,7 +7,9 @@ import { lireEntreprise, rechercherEntreprises } from "@/lib/annuaire"
 import { fermer } from "@/lib/db"
 import type { Enrichissement } from "@/lib/enrich"
 import {
+  completerFiche,
   enregistrerEnrichissement,
+  enregistrerLiquidations,
   enregistrerFichesSirene,
   enregistrerVerifications,
   fichesAEnrichir,
@@ -155,5 +157,78 @@ describe.skipIf(!url)("stockage PostgreSQL", () => {
       monartisan: { statut: "concorde", verifie_le: date },
     })
     expect((await fichesAVerifier(db, 1))[0]!.siret).toBe(autre.siret)
+  })
+
+  it("complète une fiche : téléphone mis en concurrence, labels ajoutés, site conservé", async () => {
+    process.env.DATABASE_URL = url
+    await enregistrerFichesSirene(db, [fiche])
+    const [aEnrichir] = await fichesAEnrichir(db, 1)
+    await enregistrerEnrichissement(db, aEnrichir!, {
+      ...enrichissement,
+      telephone: "0160123456",
+      telephone_type: "fixe",
+      telephone_source: "google",
+      telephone_confiance: 50,
+    })
+
+    await completerFiche(db, {
+      siret: fiche.siret,
+      source: "ademe",
+      telephone: "0612345678",
+      site_web: "https://autre.example/",
+      email: "contact@dupont.fr",
+      specialites: ["Isolation"],
+      labels: ["RGE", "Qualibat"],
+      trace: { qualifications: 2 },
+    })
+    // Réexécution : pas de doublon de source ni de label.
+    await completerFiche(db, {
+      siret: fiche.siret,
+      source: "ademe",
+      telephone: "0612345678",
+      labels: ["RGE", "Qualibat"],
+      trace: {},
+    })
+    // Un enrichissement ultérieur sans téléphone ne fait pas perdre celui de l'ADEME.
+    const [ensuite] = await fichesAEnrichir(db, 1)
+    await enregistrerEnrichissement(db, ensuite!, {
+      ...enrichissement,
+      telephone: null,
+      telephone_type: null,
+      telephone_source: null,
+      telephone_confiance: null,
+    })
+
+    const [e] = await db`select * from entreprises where siret = ${fiche.siret}`
+    expect(e).toMatchObject({
+      telephone: "0612345678",
+      telephone_type: "mobile",
+      telephone_source: "ademe",
+      site_web: "https://dupont.example/",
+      email: "contact@dupont.fr",
+      labels: ["Qualibat", "RGE"],
+    })
+    expect(e!.specialites).toEqual(expect.arrayContaining(["Chauffage", "Isolation"]))
+    expect(e!.sources).toHaveProperty("ademe")
+    expect(
+      await completerFiche(db, {
+        siret: "00000000000000",
+        source: "osm",
+        telephone: null,
+        trace: {},
+      })
+    ).toBe(false)
+  })
+
+  it("retire les entreprises en liquidation de l'annuaire public", async () => {
+    process.env.DATABASE_URL = url
+    await enregistrerFichesSirene(db, [fiche])
+    expect(await enregistrerLiquidations(db, new Map([[fiche.siren, "2026-02-01"]]))).toBe(1)
+    expect(await lireEntreprise(fiche.siret)).toBeNull()
+    expect((await rechercherEntreprises({})).total).toBe(0)
+    expect(await fichesAEnrichir(db, 10)).toHaveLength(0)
+    // Une liquidation qui n'apparaît plus (annulée, hors fenêtre) est levée.
+    expect(await enregistrerLiquidations(db, new Map())).toBe(0)
+    expect(await lireEntreprise(fiche.siret)).not.toBeNull()
   })
 })

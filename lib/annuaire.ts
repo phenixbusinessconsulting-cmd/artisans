@@ -35,7 +35,7 @@ export async function rechercherEntreprises(filtres: Filtres) {
   const q = nettoyerRecherche(filtres.q)
   const ville = nettoyerRecherche(filtres.ville)
 
-  const conditions = [db`not masque`]
+  const conditions = [db`not masque and liquidation_le is null`]
   if (q) {
     const motif = `%${q}%`
     conditions.push(
@@ -71,6 +71,7 @@ export async function lireEntreprise(siret: string): Promise<Entreprise | null> 
   if (!/^\d{14}$/.test(siret)) return null
   const db = sql()
   const [e] = await db<Entreprise[]>`
-    select ${colonnes(db)} from entreprises where siret = ${siret} and not masque`
+    select ${colonnes(db)} from entreprises
+    where siret = ${siret} and not masque and liquidation_le is null`
   return e ?? null
 }

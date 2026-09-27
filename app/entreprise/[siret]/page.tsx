@@ -8,6 +8,8 @@ import { nomAffiche } from "../../fiche"
 const SOURCES_TELEPHONE: Record<string, string> = {
   google: "fiche Google de l'entreprise",
   site: "site web de l'entreprise",
+  ademe: "liste RGE de l'ADEME",
+  osm: "OpenStreetMap",
 }
 
 function formaterSiret(siret: string) {

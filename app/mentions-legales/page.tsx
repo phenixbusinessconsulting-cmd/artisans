@@ -21,7 +21,19 @@ export default function MentionsLegales() {
             Identité, adresse, SIRET, activité et dirigeants : registres publics SIRENE (INSEE) et
             RNE (INPI), via l&apos;API Recherche d&apos;entreprises de l&apos;État (open data).
           </li>
-          <li>Label RGE : liste publique de l&apos;ADEME.</li>
+          <li>
+            Labels RGE, organismes de qualification, domaines de travaux et coordonnées publiées par
+            les entreprises qualifiées : liste des entreprises RGE de l&apos;ADEME (Licence
+            Ouverte).
+          </li>
+          <li>
+            Entreprises en liquidation judiciaire, retirées de l&apos;annuaire : BODACC (DILA).
+          </li>
+          <li>
+            Téléphones et sites d&apos;artisans cartographiés : © les contributeurs
+            d&apos;OpenStreetMap, données disponibles sous licence ODbL
+            (openstreetmap.org/copyright).
+          </li>
           <li>
             Téléphone, site web et spécialités : informations publiées par l&apos;entreprise
             elle-même (site internet, fiche d&apos;établissement Google).

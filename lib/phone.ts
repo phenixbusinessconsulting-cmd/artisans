@@ -82,3 +82,17 @@ export function choisirTelephone(candidats: (TelephoneCandidat | null)[]): Telep
     confiance: Math.min(100, 50 + 25 * (sources.size - 1)),
   }
 }
+
+/** Candidats correspondant à un numéro déjà retenu, une entrée par source (« google+site »). */
+export function candidatsExistants(
+  numero: string | null,
+  sources: string | null,
+  exclure: string[] = []
+): TelephoneCandidat[] {
+  if (!numero || !sources) return []
+  return sources
+    .split("+")
+    .filter((s) => s && !exclure.includes(s))
+    .map((s) => candidat(numero, s))
+    .filter((c): c is TelephoneCandidat => !!c)
+}

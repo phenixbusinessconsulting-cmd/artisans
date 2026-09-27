@@ -27,7 +27,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <footer className="border-t border-stone-200 bg-white text-sm text-stone-500">
           <div className="mx-auto flex max-w-6xl flex-wrap gap-x-6 gap-y-2 px-4 py-6">
             <span>
-              Données : registres SIRENE / RNE (open data), fiches publiques des entreprises.
+              Données : SIRENE, RNE, ADEME, BODACC (open data), © contributeurs OpenStreetMap
+              (ODbL), fiches publiques des entreprises.
             </span>
             <Link href="/mentions-legales" className="underline">
               Mentions légales et données personnelles

@@ -1,6 +1,7 @@
 name: Refresh data
 
-# Rafraîchit l'annuaire sur le VPS : import SIRENE, enrichissement d'un lot de fiches,
+# Rafraîchit l'annuaire sur le VPS : import SIRENE, sources ouvertes (ADEME, OSM, BODACC),
+# enrichissement d'un lot de fiches,
 # puis contrôle croisé sur les annuaires tiers.
 on:
   schedule:
@@ -46,6 +47,8 @@ jobs:
               case "$n" in ''|*[!0-9]*) echo "nombre invalide : $n"; exit 1;; esac
             done
             docker compose run --rm worker npm run ingest
+            # ADEME RGE, OpenStreetMap, BODACC : une source en échec n'arrête pas le rafraîchissement.
+            docker compose run --rm worker npm run sources || echo "Sources ouvertes : au moins une en échec (voir ci-dessus)"
             docker compose run --rm worker npm run enrich -- --limite="$LIMITE"
             if [ "$VERIFIER" -gt 0 ]; then
               docker compose run --rm worker npm run verify -- --limite="$VERIFIER"

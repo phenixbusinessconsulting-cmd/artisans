@@ -12,7 +12,8 @@
     "test:unit": "vitest run",
     "ingest": "tsx scripts/ingest.ts",
     "enrich": "tsx scripts/enrich.ts",
-    "verify": "tsx scripts/verify.ts"
+    "verify": "tsx scripts/verify.ts",
+    "sources": "tsx scripts/sources-ouvertes.ts"
   },
   "dependencies": {
     "clsx": "^2.1.1",

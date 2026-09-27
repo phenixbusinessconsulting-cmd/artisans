@@ -6,15 +6,23 @@ et labels.
 
 ## Sources croisées
 
-| Donnée                                                              | Source                                                                                                | Coût                 |
-| ------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | -------------------- |
-| Raison sociale, enseigne, SIRET, adresse, code NAF, dirigeants, RGE | [API Recherche d'entreprises](https://recherche-entreprises.api.gouv.fr/docs/) (SIRENE + RNE + ADEME) | Gratuit              |
-| Téléphone, site web                                                 | Google Places API (New), fiche publique de l'établissement                                            | ~17 € / 1 000 fiches |
-| Téléphone, spécialités, confirmation du SIREN                       | Site web de l'entreprise (accueil, contact, mentions légales)                                         | Gratuit              |
+| Donnée                                                                                       | Source                                                                                                               | Coût                           |
+| -------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
+| Raison sociale, enseigne, SIRET, adresse, code NAF, dirigeants                               | [API Recherche d'entreprises](https://recherche-entreprises.api.gouv.fr/docs/) (SIRENE + RNE)                        | Gratuit                        |
+| Téléphone, e-mail, site, domaines de travaux, organismes (Qualibat, Qualit'EnR, Qualifelec…) | [Liste des entreprises RGE de l'ADEME](https://data.ademe.fr/datasets/liste-des-entreprises-rge-2) (Licence Ouverte) | Gratuit                        |
+| Téléphone, site des artisans cartographiés                                                   | OpenStreetMap / Overpass (© contributeurs OSM, ODbL)                                                                 | Gratuit                        |
+| Entreprises en liquidation judiciaire (retirées)                                             | [BODACC](https://bodacc-datadila.opendatasoft.com/) (DILA)                                                           | Gratuit                        |
+| Téléphone, site web                                                                          | Google Places API (New), fiche publique de l'établissement                                                           | Payant (quota gratuit mensuel) |
+| Téléphone, spécialités, confirmation du SIREN                                                | Site web de l'entreprise (accueil, contact, mentions légales)                                                        | Gratuit                        |
+
+Ordre du rafraîchissement (`.github/workflows/refresh-data.yml`) : `npm run ingest` (SIRENE) →
+`npm run sources` (ADEME, OSM, BODACC) → `npm run enrich` (Google, sites) → `npm run verify`
+(annuaires tiers).
 
 Règles de fusion (`lib/phone.ts`, `lib/enrich/`) :
 
-- un portable est préféré à un fixe ; à type égal, le numéro confirmé par le plus de sources gagne ;
+- chaque source propose au plus un numéro ; un portable est préféré à un fixe, puis le numéro
+  confirmé par le plus de sources (la confiance augmente avec chaque source concordante) ;
 - la fiche Google n'est retenue qu'à moins d'1 km de l'adresse SIRENE ;
 - les numéros d'un site ne sont retenus que si le site affiche le SIREN, ou s'il en publie au plus deux ;
 - chaque fiche garde la trace de ses sources (colonne `sources`) et un indice de confiance.
