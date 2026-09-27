@@ -33,10 +33,11 @@ export function motDePasseValide(saisi: string): boolean {
 }
 
 export async function estAdmin(): Promise<boolean> {
-  const mdp = motDePasse()
-  if (!mdp) return false
+  // Les cookies sont lus avant tout test : la page reste rendue à chaque requête, même quand
+  // ADMIN_PASSWORD est absent au moment du build (sinon Next.js la figerait).
   const valeur = (await cookies()).get(COOKIE)?.value
-  return !!valeur && egaux(valeur, jeton(mdp))
+  const mdp = motDePasse()
+  return !!mdp && !!valeur && egaux(valeur, jeton(mdp))
 }
 
 export async function ouvrirSession() {

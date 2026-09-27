@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import { connection } from "next/server"
 import { adminConfigure } from "@/lib/admin"
 import { FormulaireConnexion } from "./formulaire"
 
@@ -7,7 +8,9 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 }
 
-export default function Connexion() {
+export default async function Connexion() {
+  // ADMIN_PASSWORD est lu à l'exécution, jamais au build.
+  await connection()
   return (
     <div className="mx-auto max-w-sm">
       <h1 className="text-2xl font-bold">Mode administrateur</h1>
