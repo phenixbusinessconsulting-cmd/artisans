@@ -49,6 +49,7 @@ export async function rechercherEntreprises(filtres: Filtres) {
   if (filtres.metier) conditions.push(db`metier = ${filtres.metier}`)
   if (filtres.specialite) conditions.push(db`${filtres.specialite} = any(specialites)`)
   if (filtres.telephone === "oui") conditions.push(db`telephone is not null`)
+  // Portable : numéros en 06 ou 07 (voir typeTelephone dans lib/phone.ts).
   if (filtres.telephone === "mobile") conditions.push(db`telephone_type = 'mobile'`)
   if (ville) {
     conditions.push(
