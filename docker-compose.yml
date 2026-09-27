@@ -1,0 +1,26 @@
+services:
+  app:
+    build:
+      context: .
+      target: runner
+      args:
+        GIT_COMMIT_HASH: ${GIT_COMMIT_HASH:-local}
+    # Accessible uniquement depuis le serveur : Nginx (artisans.monsitedemo-talens.fr) fait le relais.
+    ports:
+      - "127.0.0.1:3014:3000"
+    env_file:
+      - .env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  # Scripts ponctuels : docker compose run --rm worker npm run ingest
+  worker:
+    build:
+      context: .
+      target: worker
+    profiles: ["tools"]
+    env_file:
+      - .env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
