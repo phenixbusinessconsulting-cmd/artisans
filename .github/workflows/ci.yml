@@ -99,9 +99,11 @@ jobs:
             export GIT_COMMIT_HASH=$(echo "$GIT_COMMIT_HASH" | cut -c1-7)
             docker compose --profile tools build app worker
             docker compose up -d --wait db
-            # Migrations idempotentes, rejouées à chaque déploiement.
+            # Migrations idempotentes, rejouées à chaque déploiement (envoyées par l'entrée standard :
+            # le conteneur db survit aux déploiements, il ne doit pas dépendre du dossier du code).
             for f in db/*.sql; do
-              docker compose exec -T -e PGOPTIONS="-c client_min_messages=warning" db psql -U artisans -d artisans -v ON_ERROR_STOP=1 -q -f "/docker-entrypoint-initdb.d/$(basename "$f")"
+              docker compose exec -T -e PGOPTIONS="-c client_min_messages=warning" db \
+                psql -U artisans -d artisans -v ON_ERROR_STOP=1 -q < "$f"
             done
             docker compose up -d app
             sleep 5
