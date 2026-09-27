@@ -53,6 +53,10 @@ jobs:
     # Activé une fois les secrets VPS ajoutés : variable de dépôt DEPLOY_ENABLED = true
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && vars.DEPLOY_ENABLED == 'true'
     environment: production
+    # Un seul déploiement ou rafraîchissement à la fois sur le serveur.
+    concurrency:
+      group: vps-artisans
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
 

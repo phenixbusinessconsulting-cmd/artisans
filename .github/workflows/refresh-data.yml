@@ -17,8 +17,9 @@ on:
         required: true
         default: "100"
 
+# Partagé avec le déploiement (ci.yml) : jamais les deux en même temps sur le serveur.
 concurrency:
-  group: refresh-data
+  group: vps-artisans
   cancel-in-progress: false
 
 jobs:
