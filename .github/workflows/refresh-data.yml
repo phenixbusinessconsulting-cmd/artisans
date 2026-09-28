@@ -1,13 +1,17 @@
 name: Refresh data
 
-# Rafraîchit l'annuaire sur le VPS : import SIRENE, sources ouvertes (ADEME, OSM, BODACC),
-# enrichissement d'un lot de fiches,
+# Rafraîchit l'annuaire sur le VPS, pour chaque département couvert : import SIRENE, sources
+# ouvertes (ADEME, OSM, BODACC) ; puis enrichissement d'un lot de fiches (les jamais enrichies d'abord),
 # puis contrôle croisé sur les annuaires tiers.
 on:
   schedule:
     - cron: "17 3 * * 1" # chaque lundi à 03:17 UTC
   workflow_dispatch:
     inputs:
+      departements:
+        description: "Départements à importer (codes séparés par des espaces)"
+        required: true
+        default: "91 28"
       limite:
         description: "Nombre de fiches à enrichir"
         required: true
@@ -33,23 +37,30 @@ jobs:
       - name: Run worker via SSH
         uses: appleboy/ssh-action@v1
         env:
+          DEPARTEMENTS: ${{ inputs.departements || '91 28' }}
           LIMITE: ${{ inputs.limite || '500' }}
           VERIFIER: ${{ inputs.verifier || '100' }}
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          envs: LIMITE,VERIFIER
-          command_timeout: 120m
+          envs: DEPARTEMENTS,LIMITE,VERIFIER
+          command_timeout: 300m
           script: |
             set -e
             cd /var/www/artisans/app
             for n in "$LIMITE" "$VERIFIER"; do
               case "$n" in ''|*[!0-9]*) echo "nombre invalide : $n"; exit 1;; esac
             done
-            docker compose run --rm worker npm run ingest
-            # ADEME RGE, OpenStreetMap, BODACC : une source en échec n'arrête pas le rafraîchissement.
-            docker compose run --rm worker npm run sources || echo "Sources ouvertes : au moins une en échec (voir ci-dessus)"
+            for d in $DEPARTEMENTS; do
+              case "$d" in [0-9][0-9]) ;; *) echo "département invalide : $d"; exit 1;; esac
+            done
+            for d in $DEPARTEMENTS; do
+              echo "=== Département $d ==="
+              docker compose run --rm -e DEPARTEMENT="$d" worker npm run ingest
+              # ADEME RGE, OpenStreetMap, BODACC : une source en échec n'arrête pas le rafraîchissement.
+              docker compose run --rm -e DEPARTEMENT="$d" worker npm run sources || echo "Sources ouvertes ($d) : au moins une en échec (voir ci-dessus)"
+            done
             docker compose run --rm worker npm run enrich -- --limite="$LIMITE"
             if [ "$VERIFIER" -gt 0 ]; then
               docker compose run --rm worker npm run verify -- --limite="$VERIFIER"

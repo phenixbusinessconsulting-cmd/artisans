@@ -137,27 +137,37 @@ export function completementRge(f: FicheRge): CompletementSource {
   }
 }
 
-/** Marque les entreprises en liquidation (par SIREN) ; les autres sont démarquées. */
-export async function enregistrerLiquidations(db: postgres.Sql, parSiren: Map<string, string>) {
+/**
+ * Marque les entreprises du département en liquidation (par SIREN) ; les autres fiches du
+ * département sont démarquées. Les autres départements ne sont pas touchés.
+ */
+export async function enregistrerLiquidations(
+  db: postgres.Sql,
+  departement: string,
+  parSiren: Map<string, string>
+) {
   const lignes = [...parSiren.entries()].map(([siren, date]) => ({ siren, date }))
+  const duDepartement = db`code_postal like ${departement + "%"}`
   await db.begin(async (tx) => {
-    await tx`update entreprises set liquidation_le = null where liquidation_le is not null`
+    await tx`update entreprises set liquidation_le = null
+      where liquidation_le is not null and ${duDepartement}`
     if (lignes.length) {
       await tx`
         update entreprises e set liquidation_le = l.date::date
         from jsonb_to_recordset(${tx.json(lignes as never)}) as l(siren text, date text)
-        where e.siren = l.siren`
+        where e.siren = l.siren and ${duDepartement}`
     }
   })
   const [ligne] = await db<{ n: number }[]>`
-    select count(*)::int as n from entreprises where liquidation_le is not null`
+    select count(*)::int as n from entreprises where liquidation_le is not null and ${duDepartement}`
   return ligne?.n ?? 0
 }
 
-export async function fichesPourRapprochement(db: postgres.Sql) {
+export async function fichesPourRapprochement(db: postgres.Sql, departement: string) {
   return db<
     Pick<Entreprise, "siret" | "raison_sociale" | "enseigne" | "latitude" | "longitude">[]
-  >`select siret, raison_sociale, enseigne, latitude, longitude from entreprises where not masque`
+  >`select siret, raison_sociale, enseigne, latitude, longitude from entreprises
+    where not masque and code_postal like ${departement + "%"}`
 }
 
 /** Droit d'opposition : enregistre la demande et masque la fiche, dans une même transaction. */

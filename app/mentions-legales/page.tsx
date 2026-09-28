@@ -49,7 +49,8 @@ export default function MentionsLegales() {
         <h2 className="text-lg font-semibold">Vos droits</h2>
         <p>
           Finalité : mettre en relation les particuliers et professionnels avec les artisans du
-          bâtiment de l&apos;Essonne. Base légale : intérêt légitime (art. 6.1.f du RGPD).
+          bâtiment de l&apos;Essonne et d&apos;Eure-et-Loir. Base légale : intérêt légitime (art.
+          6.1.f du RGPD).
         </p>
         <p>
           Vous disposez d&apos;un droit d&apos;accès, de rectification, d&apos;effacement et

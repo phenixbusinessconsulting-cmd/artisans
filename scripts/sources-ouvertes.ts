@@ -38,7 +38,7 @@ async function main() {
     },
     osm: async () => {
       const lieux = await lireOsm(DEPARTEMENT)
-      const fiches = await fichesPourRapprochement(db)
+      const fiches = await fichesPourRapprochement(db, DEPARTEMENT)
       let completees = 0
       for (const lieu of lieux) {
         const siret = rapprocher(lieu, fiches)
@@ -58,7 +58,7 @@ async function main() {
       const depuis = new Date()
       depuis.setFullYear(depuis.getFullYear() - BODACC_ANNEES)
       const annonces = await lireBodacc(DEPARTEMENT, depuis.toISOString().slice(0, 10))
-      const n = await enregistrerLiquidations(db, liquidations(annonces))
+      const n = await enregistrerLiquidations(db, DEPARTEMENT, liquidations(annonces))
       return `${annonces.length} annonces, ${n} fiches en liquidation retirées`
     },
   }

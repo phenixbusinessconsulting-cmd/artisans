@@ -3,6 +3,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { estAdmin } from "@/lib/admin"
 import { lireEntreprise } from "@/lib/annuaire"
+import { DEPARTEMENTS, departementDeCodePostal } from "@/lib/departements"
 import { sql } from "@/lib/db"
 import { lireSuivi } from "@/lib/suivi"
 import { formaterTelephone } from "@/lib/phone"
@@ -26,8 +27,8 @@ export async function generateMetadata(props: PageProps<"/entreprise/[siret]">):
   const e = await lireEntreprise(siret)
   if (!e) return {}
   return {
-    title: `${nomAffiche(e)} — ${e.metier} à ${e.ville ?? "Essonne"}`,
-    description: `${nomAffiche(e)}, ${e.metier.toLowerCase()} à ${e.ville ?? ""} (${e.code_postal ?? "91"}).`,
+    title: `${nomAffiche(e)} — ${e.metier} à ${e.ville ?? departementDeCodePostal(e.code_postal)?.nom ?? ""}`,
+    description: `${nomAffiche(e)}, ${e.metier.toLowerCase()} à ${e.ville ?? ""} (${e.code_postal ?? ""}).`,
   }
 }
 
@@ -37,6 +38,7 @@ export default async function FicheEntreprise(props: PageProps<"/entreprise/[sir
   if (!e) notFound()
   const admin = await estAdmin()
   const suivi = admin ? await lireSuivi(sql(), e.siret) : null
+  const departement = departementDeCodePostal(e.code_postal) ?? DEPARTEMENTS["91"]
 
   const sourcesTel = (e.telephone_source ?? "")
     .split("+")
@@ -45,8 +47,8 @@ export default async function FicheEntreprise(props: PageProps<"/entreprise/[sir
 
   return (
     <article className="mx-auto max-w-3xl">
-      <Link href="/" className="text-sm text-stone-500 underline">
-        ← Retour à l&apos;annuaire
+      <Link href={departement.chemin} className="text-sm text-stone-500 underline">
+        ← Retour à l&apos;annuaire {departement.de}
       </Link>
       <p className="text-marque mt-4 text-sm font-semibold tracking-wide uppercase">{e.metier}</p>
       <h1 className="text-2xl font-bold sm:text-3xl">{nomAffiche(e)}</h1>
@@ -124,7 +126,7 @@ export default async function FicheEntreprise(props: PageProps<"/entreprise/[sir
             {e.specialites.map((s) => (
               <li key={s}>
                 <Link
-                  href={`/?specialite=${encodeURIComponent(s)}`}
+                  href={`${departement.chemin}?specialite=${encodeURIComponent(s)}`}
                   className="block rounded bg-stone-100 px-2 py-1 text-sm text-stone-700 hover:bg-stone-200"
                 >
                   {s}

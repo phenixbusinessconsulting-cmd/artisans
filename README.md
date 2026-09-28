@@ -1,4 +1,9 @@
-# Artisans 91 — annuaire des artisans du bâtiment de l'Essonne
+# Annuaire des artisans du bâtiment — Essonne (91) et Eure-et-Loir (28)
+
+Chaque département a sa page : `/` pour l'Essonne, `/eure-et-loir` pour l'Eure-et-Loir. Les fiches
+sont dans la même base ; le département se déduit du code postal. Pour ajouter un département : une
+entrée dans `lib/departements.ts`, une page `app/<slug>/page.tsx`, et son code dans l'entrée
+`departements` du workflow `refresh-data.yml` (les scripts d'import lisent la variable `DEPARTEMENT`).
 
 Annuaire public en ligne sur `artisans.monsitedemo-talens.fr`. Pour chaque établissement : nom de la
 société, décideur, téléphone (portable de préférence, sinon fixe), adresse, SIRET, métier, spécialités

@@ -6,6 +6,8 @@ import type { Entreprise } from "./types"
 export const PAR_PAGE = 24
 
 export interface Filtres {
+  /** Code du département (préfixe du code postal) : chaque page n'affiche que le sien. */
+  departement?: string
   q?: string
   metier?: string
   ville?: string
@@ -50,6 +52,8 @@ export async function rechercherEntreprises(filtres: Filtres, options: { admin?:
         or unaccent(dirigeant_nom) ilike unaccent(${motif}))`
     )
   }
+  if (filtres.departement && /^\d{2}$/.test(filtres.departement))
+    conditions.push(db`code_postal like ${filtres.departement + "%"}`)
   if (filtres.metier) conditions.push(db`metier = ${filtres.metier}`)
   if (filtres.specialite) conditions.push(db`${filtres.specialite} = any(specialites)`)
   if (options.admin && filtres.suivi === "contacte")

@@ -145,6 +145,8 @@ describe.skipIf(!url)("stockage PostgreSQL", () => {
       autre.siret,
     ])
     expect((await rechercherEntreprises({ page: 2 })).entreprises).toEqual([])
+    expect((await rechercherEntreprises({ departement: "91" })).total).toBe(2)
+    expect((await rechercherEntreprises({ departement: "28" })).total).toBe(0)
 
     const e = await lireEntreprise(fiche.siret)
     expect(e).toMatchObject({ date_creation: "2015-03-01", labels: ["RGE"], latitude: 48.63 })
@@ -237,12 +239,15 @@ describe.skipIf(!url)("stockage PostgreSQL", () => {
   it("retire les entreprises en liquidation de l'annuaire public", async () => {
     process.env.DATABASE_URL = url
     await enregistrerFichesSirene(db, [fiche])
-    expect(await enregistrerLiquidations(db, new Map([[fiche.siren, "2026-02-01"]]))).toBe(1)
+    expect(await enregistrerLiquidations(db, "91", new Map([[fiche.siren, "2026-02-01"]]))).toBe(1)
     expect(await lireEntreprise(fiche.siret)).toBeNull()
     expect((await rechercherEntreprises({})).total).toBe(0)
     expect(await fichesAEnrichir(db, 10)).toHaveLength(0)
     // Une liquidation qui n'apparaît plus (annulée, hors fenêtre) est levée.
-    expect(await enregistrerLiquidations(db, new Map())).toBe(0)
+    // Le rafraîchissement d'un autre département ne lève pas la liquidation.
+    expect(await enregistrerLiquidations(db, "28", new Map())).toBe(0)
+    expect(await lireEntreprise(fiche.siret)).toBeNull()
+    expect(await enregistrerLiquidations(db, "91", new Map())).toBe(0)
     expect(await lireEntreprise(fiche.siret)).not.toBeNull()
   })
 
@@ -342,5 +347,26 @@ describe.skipIf(!url)("stockage PostgreSQL", () => {
       specialites: ["Désamiantage"],
     })
     expect(dma!.sources.amiante).toMatchObject({ siret_liste: "70000000000011", echeance: "2017" })
+  })
+
+  it("sépare les départements : chaque page ne montre que le sien", async () => {
+    process.env.DATABASE_URL = url
+    const chartres = {
+      ...fiche,
+      siret: "80000000000011",
+      siren: "800000000",
+      code_postal: "28000",
+      ville: "Chartres",
+    }
+    await enregistrerFichesSirene(db, [fiche, chartres])
+    const siretsDe = async (departement: string) =>
+      (await rechercherEntreprises({ departement })).entreprises.map((e) => e.siret)
+    expect(await siretsDe("91")).toEqual([fiche.siret])
+    expect(await siretsDe("28")).toEqual([chartres.siret])
+    // Un code postal saisi dans « ville » reste limité au département de la page.
+    expect((await rechercherEntreprises({ departement: "28", ville: "91" })).total).toBe(0)
+    // Une liquidation dans un département ne touche pas l'autre.
+    await enregistrerLiquidations(db, "28", new Map([[fiche.siren, "2026-02-01"]]))
+    expect(await siretsDe("91")).toEqual([fiche.siret])
   })
 })
