@@ -13,7 +13,8 @@
     "ingest": "tsx scripts/ingest.ts",
     "enrich": "tsx scripts/enrich.ts",
     "verify": "tsx scripts/verify.ts",
-    "sources": "tsx scripts/sources-ouvertes.ts"
+    "sources": "tsx scripts/sources-ouvertes.ts",
+    "import-liste": "tsx scripts/import-liste.ts"
   },
   "dependencies": {
     "clsx": "^2.1.1",

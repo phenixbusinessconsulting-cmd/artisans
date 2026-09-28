@@ -84,8 +84,14 @@ function decideur(r: ResultatApi): { nom: string | null; qualite: string | null 
  * Transforme un résultat de l'API en fiches (une par établissement actif du département).
  * Les entreprises en diffusion partielle (opposition au registre SIRENE) sont exclues :
  * leurs données personnelles ne doivent pas être publiées.
+ * `metierHorsBtp` accepte un établissement dont le code NAF n'est pas dans la liste du bâtiment
+ * (ex. entreprise de désamiantage classée en dépollution), avec ce libellé métier.
  */
-export function versEntreprises(r: ResultatApi, departement: string): EntrepriseSirene[] {
+export function versEntreprises(
+  r: ResultatApi,
+  departement: string,
+  options: { metierHorsBtp?: string } = {}
+): EntrepriseSirene[] {
   if (r.statut_diffusion && r.statut_diffusion !== "O") return []
   if (NON_DIFFUSIBLE.test(r.nom_complet ?? "") || NON_DIFFUSIBLE.test(r.nom_raison_sociale ?? ""))
     return []
@@ -105,7 +111,7 @@ export function versEntreprises(r: ResultatApi, departement: string): Entreprise
   for (const e of etablissements) {
     if (e.etat_administratif && e.etat_administratif !== "A") continue
     if (!e.code_postal?.startsWith(departement)) continue
-    const metier = metierDepuisNaf(e.activite_principale)
+    const metier = metierDepuisNaf(e.activite_principale) ?? options.metierHorsBtp
     if (!metier || !e.activite_principale) continue
     const enseigne = e.liste_enseignes?.find((x) => x && !NON_DIFFUSIBLE.test(x))
     fiches.push({
@@ -166,5 +172,22 @@ export async function rechercher(
     throw new Error(
       `API Recherche d'entreprises : HTTP ${res.status} pour ${urlRecherche(recherche)}`
     )
+  }
+}
+
+/** Recherche une entreprise par SIRET (établissement correspondant dans `matching_etablissements`). */
+export async function rechercherSiret(
+  siret: string,
+  fetchImpl: typeof fetch = fetch
+): Promise<ResultatApi | null> {
+  const url = `${API}?${new URLSearchParams({ q: siret, per_page: "1", page: "1" })}`
+  for (let tentative = 1; ; tentative++) {
+    const res = await fetchImpl(url, { headers: { Accept: "application/json" } })
+    if (res.ok) return ((await res.json()) as PageApi).results[0] ?? null
+    if ((res.status === 429 || res.status >= 500) && tentative < 5) {
+      await new Promise((r) => setTimeout(r, 1000 * tentative))
+      continue
+    }
+    throw new Error(`API Recherche d'entreprises : HTTP ${res.status} pour ${url}`)
   }
 }

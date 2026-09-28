@@ -16,6 +16,8 @@ import {
   fichesAVerifier,
   masquerFiche,
 } from "@/lib/stockage"
+import { importerListe } from "@/lib/sources/liste-entreprises"
+import type { ResultatApi } from "@/lib/sources/recherche-entreprises"
 import { enregistrerCommentaire, lireSuivi, marquerContacte, SUIVI_VIDE } from "@/lib/suivi"
 import type { EntrepriseSirene } from "@/lib/types"
 
@@ -273,5 +275,72 @@ describe.skipIf(!url)("stockage PostgreSQL", () => {
 
     const s3 = await marquerContacte(db, fiche.siret, false)
     expect(s3).toMatchObject({ contacte: false, contacte_le: null, commentaire: "Rappeler lundi" })
+  })
+
+  it("importe une liste : complète l'existant, ajoute le nouveau, écarte le reste", async () => {
+    await enregistrerFichesSirene(db, [fiche])
+    const etab = (siret: string, naf: string, etat = "A", code_postal = "91100") => ({
+      siret,
+      activite_principale: naf,
+      etat_administratif: etat,
+      code_postal,
+      adresse: "1 rue X",
+      libelle_commune: "CORBEIL-ESSONNES",
+    })
+    const reponses: Record<string, ResultatApi> = {
+      // Désamiantage classé hors bâtiment (39.00Z) : ajouté avec le métier de repli.
+      "70000000000011": {
+        siren: "700000000",
+        nom_raison_sociale: "ART DMA",
+        statut_diffusion: "O",
+        matching_etablissements: [etab("70000000000011", "39.00Z")],
+      },
+      // Établissement fermé, siège hors département : écarté.
+      "71000000000011": {
+        siren: "710000000",
+        nom_raison_sociale: "FERMEE",
+        statut_diffusion: "O",
+        matching_etablissements: [etab("71000000000011", "43.11Z", "F")],
+        siege: etab("71000000000029", "43.11Z", "A", "75011"),
+      },
+    }
+    const fetchImpl = (async (url: string | URL | Request) => {
+      const q = new URL(String(url)).searchParams.get("q") ?? ""
+      const r = reponses[q]
+      return new Response(JSON.stringify({ results: r ? [r] : [] }))
+    }) as typeof fetch
+
+    const resultats = await importerListe(
+      db,
+      [
+        { siret: fiche.siret, telephone: "0160000000", email: "a@dupont.fr" },
+        { siret: "70000000000011", telephone: "0612000000", trace: { echeance: "2017" } },
+        { siret: "71000000000011" },
+        { siret: "72000000000011" },
+      ],
+      {
+        source: "amiante",
+        departement: "91",
+        specialites: ["Désamiantage"],
+        metierHorsBtp: "Désamiantage",
+        fetchImpl,
+      }
+    )
+    expect(resultats.map((r) => r.statut)).toEqual(["completee", "ajoutee", "ignoree", "ignoree"])
+    expect(resultats[2]).toMatchObject({ raison: "établissement fermé" })
+    expect(resultats[3]).toMatchObject({ raison: "introuvable dans SIRENE" })
+
+    const [dupont] = await db`select * from entreprises where siret = ${fiche.siret}`
+    expect(dupont).toMatchObject({ telephone: "0160000000", email: "a@dupont.fr" })
+    expect(dupont!.specialites).toContain("Désamiantage")
+    const [dma] = await db`select * from entreprises where siret = '70000000000011'`
+    expect(dma).toMatchObject({
+      metier: "Désamiantage",
+      naf: "39.00Z",
+      telephone: "0612000000",
+      telephone_source: "amiante",
+      specialites: ["Désamiantage"],
+    })
+    expect(dma!.sources.amiante).toMatchObject({ siret_liste: "70000000000011", echeance: "2017" })
   })
 })

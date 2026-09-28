@@ -14,6 +14,7 @@ const SOURCES_TELEPHONE: Record<string, string> = {
   site: "site web de l'entreprise",
   ademe: "liste RGE de l'ADEME",
   osm: "OpenStreetMap",
+  amiante: "liste des entreprises certifiées amiante (édition 2017)",
 }
 
 function formaterSiret(siret: string) {
