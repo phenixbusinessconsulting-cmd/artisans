@@ -12,6 +12,8 @@ export interface Filtres {
   specialite?: string
   /** « oui » : un téléphone est renseigné ; « mobile » : un portable est renseigné. */
   telephone?: "oui" | "mobile"
+  /** « oui » : un site web est renseigné ; « non » : aucun site connu. */
+  site?: "oui" | "non"
   /** Réservé à l'administrateur : « a_contacter » ou « contacte ». */
   suivi?: "a_contacter" | "contacte"
   page?: number
@@ -57,6 +59,8 @@ export async function rechercherEntreprises(filtres: Filtres, options: { admin?:
   if (filtres.telephone === "oui") conditions.push(db`telephone is not null`)
   // Portable : numéros en 06 ou 07 (voir typeTelephone dans lib/phone.ts).
   if (filtres.telephone === "mobile") conditions.push(db`telephone_type = 'mobile'`)
+  if (filtres.site === "oui") conditions.push(db`site_web is not null`)
+  if (filtres.site === "non") conditions.push(db`site_web is null`)
   if (ville) {
     conditions.push(
       /^\d{2,5}$/.test(ville)

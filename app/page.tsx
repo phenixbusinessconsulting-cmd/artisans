@@ -18,6 +18,10 @@ function filtreSuivi(v: string | undefined): Filtres["suivi"] {
   return v === "a_contacter" || v === "contacte" ? v : undefined
 }
 
+function filtreSite(v: string | undefined): Filtres["site"] {
+  return v === "oui" || v === "non" ? v : undefined
+}
+
 function filtreTelephone(v: string | undefined): Filtres["telephone"] {
   return v === "oui" || v === "mobile" ? v : undefined
 }
@@ -30,6 +34,7 @@ export default async function Accueil(props: PageProps<"/">) {
     ville: valeur(sp.ville),
     specialite: valeur(sp.specialite),
     telephone: filtreTelephone(valeur(sp.telephone)),
+    site: filtreSite(valeur(sp.site)),
     suivi: filtreSuivi(valeur(sp.suivi)),
     page: Number(valeur(sp.page)) || 1,
   }
@@ -76,6 +81,16 @@ export default async function Accueil(props: PageProps<"/">) {
           <option value="">Avec ou sans téléphone</option>
           <option value="oui">Téléphone renseigné (fixe ou portable)</option>
           <option value="mobile">Portable (06 / 07)</option>
+        </select>
+        <select
+          name="site"
+          defaultValue={filtres.site ?? ""}
+          aria-label="Site web"
+          className="rounded border border-stone-300 px-3 py-2"
+        >
+          <option value="">Avec ou sans site web</option>
+          <option value="oui">Avec site web</option>
+          <option value="non">Sans site web</option>
         </select>
         {admin && (
           <select

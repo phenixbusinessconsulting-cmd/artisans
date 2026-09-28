@@ -136,6 +136,12 @@ describe.skipIf(!url)("stockage PostgreSQL", () => {
     ).toEqual([fiche.siret])
     expect((await rechercherEntreprises({ telephone: "mobile" })).total).toBe(1)
     expect((await rechercherEntreprises({ telephone: "oui", metier: "Couvreur" })).total).toBe(0)
+    expect((await rechercherEntreprises({ site: "oui" })).entreprises.map((e) => e.siret)).toEqual([
+      fiche.siret,
+    ])
+    expect((await rechercherEntreprises({ site: "non" })).entreprises.map((e) => e.siret)).toEqual([
+      autre.siret,
+    ])
     expect((await rechercherEntreprises({ page: 2 })).entreprises).toEqual([])
 
     const e = await lireEntreprise(fiche.siret)
